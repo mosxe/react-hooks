@@ -1,17 +1,64 @@
-import React from 'react';
+﻿import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
+const App = () => {
+  const [value, setValue] = useState(1);
+  const [visible, setVisible] = useState(true);
+  if (visible) {
+    return (
+      <div>
+        <button onClick={() => setValue((v) => v + 1)}>
+          +
+        </button>
+        <button onClick={() => setVisible(false)}>
+          hide
+        </button>
+        <PlanetInfo id={value} />
+      </div>
+    );
+  } else {
+    return <button onClick={() => setVisible(true)}>show</button>
+  }
+};
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+const getPlanet = (id) => {
+  return fetch(`https://swapi.dev/api/planets/${id}`)
+  .then(res => res.json()).then(data => data);
+};
+
+const useRequest = (request) => {
+  const initialState = useMemo(() => ({
+    data: null, loading: true, error: null
+  }), []);
+
+  const [dataState, setDataState] = useState(initialState);
+  useEffect(() => {
+    setDataState(initialState);
+    let cancelled = false;
+    request().then(data => !cancelled && setDataState({data, loading: false, error: null}))
+      .catch((error) => !cancelled && setDataState({data: null, loading: false, error}));
+    return () => cancelled = true;
+  }, [request, initialState]);
+  return dataState;
+};
+
+const usePlanetInfo = (id) => {
+  const request = useCallback(() => getPlanet(id), [id]);
+  return useRequest(request);
+};
+
+const PlanetInfo = ({id}) => {
+  const {data, loading, error} = usePlanetInfo(id);
+  if (error) {
+    return <div>ERROR!</div>
+  }
+
+  if (loading) {
+    return <div>loading ...</div>
+  }
+
+  return (
+    <div>{id} - {data.name}</div>
+  );
+}
+ReactDOM.render(<App></App>, document.getElementById('root'));
